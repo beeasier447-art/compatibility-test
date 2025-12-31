@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>默契大考驗 | Compatibility Quiz</title>
+    <title>默契大考驗 | Stella & 凱晨</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Tailwind CSS -->
@@ -84,13 +84,12 @@
         // 核心邏輯：Chat Parser & Generator
         // --------------------------------------------------
         
-        // 關鍵字字典，用於生成填空題
         const KEYWORDS = {
-            items: ['鑰匙', '錢包', '手機', '印章', '存摺', '雨傘', '便當', '外套', '眼鏡', '垃圾', '安全帽', '悠遊卡', '信用卡'],
-            food: ['早餐', '午餐', '晚餐', '麥當勞', '肯德基', '火鍋', '燒肉', '拉麵', '奶茶', '咖啡', '黑糖糕', '吐司', '蛋餅', '雞排', '滷肉飯', '壽司', '水餃'],
-            actions: ['上班', '下班', '加班', '睡覺', '賴床', '洗澡', '生氣', '大哭', '開心', '焦慮', '大笑', '遲到', '請假'],
-            locations: ['公司', '家裡', '捷運', '澳洲', '日本', '台銀', '診所', '春米', '萬家香', '茶葉行', '牙醫', '全聯', '超商'],
-            people: ['經理', '老闆', '同事', '客戶', '阿北', '阿姨', '老公', '老婆', '房東']
+            items: ['鑰匙', '錢包', '手機', '印章', '存摺', '雨傘', '便當', '外套', '眼鏡', '垃圾', '安全帽', '悠遊卡'],
+            food: ['早餐', '午餐', '晚餐', '麥當勞', '肯德基', '火鍋', '燒肉', '拉麵', '奶茶', '咖啡', '黑糖糕', '吐司', '蛋餅', '雞排', '滷肉飯'],
+            actions: ['上班', '下班', '加班', '睡覺', '賴床', '洗澡', '生氣', '大哭', '開心', '焦慮', '大笑', '面試'],
+            locations: ['公司', '家裡', '捷運', '澳洲', '日本', '台銀', '診所', '春米', '萬家香', '茶葉行', '牙醫'],
+            people: ['經理', '老闆', '同事', '客戶', '阿北', '阿姨', '老公', '老婆']
         };
 
         class ChatParser {
@@ -98,7 +97,6 @@
                 this.messages = [];
             }
 
-            // 解析 Tab 分隔的文字內容
             parse(text) {
                 const lines = text.split('\n');
                 this.messages = [];
@@ -108,22 +106,17 @@
                     line = line.trim();
                     if (!line) return;
 
-                    // 1. 嘗試捕捉日期 (LINE 格式通常有單獨一行日期)
-                    // 格式多變，嘗試捕捉常見格式
                     if (line.match(/^\d{4}\/\d{1,2}\/\d{1,2}/) || line.match(/^[A-Za-z]{3}, \d{2}\/\d{2}\/\d{4}/)) {
                         currentDate = line;
                         return;
                     }
 
-                    // 2. 分割：時間 <TAB> 名字 <TAB> 訊息
                     const parts = line.split('\t');
-
                     if (parts.length >= 3) {
                         const time = parts[0].trim();
                         const rawName = parts[1].trim();
                         const content = parts.slice(2).join(' ').trim();
 
-                        // 3. 參與者標準化
                         let speaker = null;
                         if (rawName.includes('Stella')) {
                             speaker = 'Stella';
@@ -135,12 +128,11 @@
                             this.messages.push({
                                 date: currentDate,
                                 time,
-                                rawName,
                                 speaker,
                                 content,
                                 length: content.length,
                                 isSticker: content.includes('[貼圖]') || content === '貼圖',
-                                isImage: content.includes('[照片]') || content === '照片' || content.includes('sent a photo')
+                                isImage: content.includes('[照片]') || content === '照片'
                             });
                         }
                     }
@@ -148,21 +140,16 @@
                 return this.messages;
             }
 
-            // 生成題庫
-            generateQuestions(targetCount = 100) {
+            generateQuestions() {
                 if (this.messages.length === 0) return [];
                 const questions = [];
                 let qId = 1;
 
                 const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
 
-                // --- 1. 語錄題 (Quote) ---
-                // 挑選有意義的句子 (非貼圖、非網址、長度適中)
+                // 1. 語錄題
                 const validQuotes = this.messages.filter(m => 
-                    m.length >= 4 && m.length < 35 && 
-                    !m.isSticker && !m.isImage && 
-                    !m.content.includes('http') &&
-                    !m.content.includes('通話')
+                    m.length >= 4 && m.length < 35 && !m.isSticker && !m.isImage && !m.content.includes('http')
                 );
                 
                 shuffle(validQuotes).slice(0, 60).forEach(msg => {
@@ -175,19 +162,15 @@
                     });
                 });
 
-                // --- 2. 填空題 (Cloze) ---
-                const keywordTypes = ['items', 'food', 'locations', 'actions', 'people'];
+                // 2. 填空題
+                const keywordTypes = ['items', 'food', 'locations', 'actions'];
                 keywordTypes.forEach(kType => {
                     const words = KEYWORDS[kType];
-                    // 找出包含這些關鍵字的訊息
                     const candidates = this.messages.filter(m => words.some(w => m.content.includes(w)));
                     
                     shuffle(candidates).slice(0, 40).forEach(msg => {
                         const targetWord = words.find(w => msg.content.includes(w));
-                        if (!targetWord) return;
-                        
-                        // 避免太短的句子做填空會很怪
-                        if (msg.length < 5) return;
+                        if (!targetWord || msg.length < 5) return;
 
                         const maskedContent = msg.content.replace(targetWord, '＿＿');
                         const distractors = shuffle(words.filter(w => w !== targetWord)).slice(0, 3);
@@ -205,65 +188,28 @@
                     });
                 });
 
-                // --- 3. 統計題 (Stats) ---
-                // 3.1 貼圖統計
+                // 3. 統計題
                 const stickerCounts = { Stella: 0, 凱晨: 0 };
                 this.messages.forEach(m => { if (m.isSticker) stickerCounts[m.speaker]++; });
-                if (stickerCounts.Stella !== stickerCounts.凱晨) {
-                     questions.push({
-                        id: qId++,
-                        type: 'stat',
-                        text: '對話中，誰傳送「貼圖」的次數明顯比較多？',
-                        options: ['Stella', '凱晨', '一樣多', '都不傳貼圖'],
-                        answer: stickerCounts.Stella > stickerCounts.凱晨 ? 'Stella' : '凱晨'
-                    });
-                }
+                questions.push({
+                    id: qId++,
+                    type: 'stat',
+                    text: '根據對話紀錄，誰傳送「貼圖」的次數比較多？',
+                    options: ['Stella', '凱晨', '差不多', '完全不傳貼圖'],
+                    answer: stickerCounts.Stella > stickerCounts.凱晨 ? 'Stella' : '凱晨'
+                });
 
-                // 3.2 晚睡統計 (00:00 - 04:00)
                 const nightCounts = { Stella: 0, 凱晨: 0 };
                 this.messages.forEach(m => {
                     const hour = parseInt(m.time.split(':')[0]);
                     if (hour >= 0 && hour < 4) nightCounts[m.speaker]++;
                 });
-                if (Math.abs(nightCounts.Stella - nightCounts.凱晨) > 2) {
-                    questions.push({
-                        id: qId++,
-                        type: 'stat',
-                        text: '誰比較常在半夜 (00:00-04:00) 還在傳訊息？',
-                        options: ['Stella', '凱晨', '頻率差不多', '都早睡早起'],
-                        answer: nightCounts.Stella > nightCounts.凱晨 ? 'Stella' : '凱晨'
-                    });
-                }
-
-                // 3.3 字數統計 (誰話比較多)
-                const totalLength = { Stella: 0, 凱晨: 0 };
-                this.messages.forEach(m => { totalLength[m.speaker] += m.length; });
-                if (Math.abs(totalLength.Stella - totalLength.凱晨) > 500) {
-                     questions.push({
-                        id: qId++,
-                        type: 'stat',
-                        text: '整體來看，誰打的字數總和比較多？',
-                        options: ['Stella', '凱晨', '差不多', '無法計算'],
-                        answer: totalLength.Stella > totalLength.凱晨 ? 'Stella' : '凱晨'
-                    });
-                }
-
-                // --- 4. 時間點題 (First Message) ---
-                // 找出每一天第一則訊息是誰傳的
-                const days = {};
-                this.messages.forEach(m => {
-                    if (m.date && !days[m.date]) {
-                        days[m.date] = m.speaker;
-                    }
-                });
-                Object.keys(days).slice(0, 10).forEach(date => {
-                    questions.push({
-                        id: qId++,
-                        type: 'time',
-                        text: `在 ${date} 這一天，是誰傳了第一則訊息？`,
-                        options: ['Stella', '凱晨', '同時', '系統'],
-                        answer: days[date]
-                    });
+                questions.push({
+                    id: qId++,
+                    type: 'stat',
+                    text: '誰比較常在半夜 (00:00-04:00) 傳訊息？',
+                    options: ['Stella', '凱晨', '頻率差不多', '兩人都早睡'],
+                    answer: nightCounts.Stella > nightCounts.凱晨 ? 'Stella' : '凱晨'
                 });
 
                 return shuffle(questions);
@@ -275,81 +221,55 @@
         // --------------------------------------------------
         
         function App() {
-            const [view, setView] = useState('loading'); // loading, menu, quiz, result, error
+            const [view, setView] = useState('loading');
             const [errorMessage, setErrorMessage] = useState('');
             const [questions, setQuestions] = useState([]);
-            
-            const [currentUser, setCurrentUser] = useState(''); // 'Stella' or '凱晨'
+            const [currentUser, setCurrentUser] = useState('');
             const [currentQuizSet, setCurrentQuizSet] = useState([]);
             const [currentQIndex, setCurrentQIndex] = useState(0);
             const [answers, setAnswers] = useState({});
             const [score, setScore] = useState(0);
 
-            // 讀取歷史紀錄 (防重複)
             const [history, setHistory] = useState(() => {
-                const saved = localStorage.getItem('quiz_history_gh');
+                const saved = localStorage.getItem('quiz_history_final');
                 return saved ? JSON.parse(saved) : { Stella: [], 凱晨: [] };
             });
 
             useEffect(() => {
-                localStorage.setItem('quiz_history_gh', JSON.stringify(history));
+                localStorage.setItem('quiz_history_final', JSON.stringify(history));
             }, [history]);
 
-            // --- 自動讀取 line-chat.txt ---
             useEffect(() => {
                 const initData = async () => {
                     try {
-                        console.log("正在讀取 line-chat.txt...");
                         const response = await fetch('./line-chat.txt');
-                        
-                        if (!response.ok) {
-                            throw new Error(`無法讀取 line-chat.txt (Status: ${response.status})。請確認檔案是否存在於根目錄。`);
-                        }
+                        if (!response.ok) throw new Error("讀取不到 line-chat.txt，請確認檔案位置。");
                         
                         const text = await response.text();
-                        console.log("讀取成功，檔案大小:", text.length);
-
                         const parser = new ChatParser();
                         const parsedMsgs = parser.parse(text);
-                        console.log("解析完成，訊息數:", parsedMsgs.length);
 
-                        if (parsedMsgs.length < 5) {
-                            throw new Error("解析出的訊息過少。請確認 line-chat.txt 格式是否為「時間 <TAB> 姓名 <TAB> 訊息」，且包含 Stella 或 凱晨。");
-                        }
+                        if (parsedMsgs.length < 5) throw new Error("解析出的訊息過少。");
 
-                        // 生成題庫
-                        const genQuestions = parser.generateQuestions(150);
-                        console.log("題庫生成:", genQuestions.length);
+                        const genQuestions = parser.generateQuestions();
                         setQuestions(genQuestions);
-                        
-                        // 稍微延遲讓 loading 動畫跑一下，體驗較佳
                         setTimeout(() => setView('menu'), 800);
-
                     } catch (err) {
-                        console.error(err);
                         setErrorMessage(err.message);
                         setView('error');
                     }
                 };
-
                 initData();
             }, []);
 
-            // --- 開始測驗邏輯 ---
             const startQuiz = (user) => {
                 setCurrentUser(user);
                 const userHistory = history[user] || [];
-                
-                // 優先使用未做過的題目
                 let available = questions.filter(q => !userHistory.includes(q.id));
-                
-                // 若題目不足 20 題，重置歷史
                 if (available.length < 20) {
                     setHistory(prev => ({ ...prev, [user]: [] }));
                     available = [...questions];
-                    // alert("題庫已輪過一輪，將重置題目紀錄！");
                 }
-
                 const quizSet = available.sort(() => Math.random() - 0.5).slice(0, 20);
                 setCurrentQuizSet(quizSet);
                 setCurrentQIndex(0);
@@ -357,21 +277,15 @@
                 setView('quiz');
             };
 
-            // --- 回答邏輯 ---
             const handleAnswer = (option) => {
                 const q = currentQuizSet[currentQIndex];
                 setAnswers(prev => ({ ...prev, [q.id]: option }));
-
                 setTimeout(() => {
-                    if (currentQIndex < 19) {
-                        setCurrentQIndex(prev => prev + 1);
-                    } else {
-                        finishQuiz();
-                    }
+                    if (currentQIndex < 19) setCurrentQIndex(prev => prev + 1);
+                    else finishQuiz();
                 }, 300);
             };
 
-            // --- 結算邏輯 ---
             const finishQuiz = () => {
                 let correctCount = 0;
                 const newHistoryIds = [];
@@ -379,193 +293,107 @@
                     if (answers[q.id] === q.answer) correctCount++;
                     newHistoryIds.push(q.id);
                 });
-
                 setScore(Math.round((correctCount / 20) * 100));
-                
                 setHistory(prev => ({
                     ...prev,
                     [currentUser]: [...(prev[currentUser] || []), ...newHistoryIds]
                 }));
-                
                 setView('result');
             };
 
-            // ------------------
-            // Views
-            // ------------------
+            if (view === 'loading') return (
+                <div className="min-h-screen flex flex-col items-center justify-center bg-morandi-bg">
+                    <div className="w-10 h-10 border-4 border-morandi-main border-t-transparent rounded-full spin mb-4"></div>
+                    <p className="text-morandi-main font-bold tracking-widest animate-pulse">讀取對話紀錄中...</p>
+                </div>
+            );
 
-            // 1. Loading
-            if (view === 'loading') {
-                return (
-                    <div className="min-h-screen flex flex-col items-center justify-center bg-morandi-bg">
-                        <div className="w-10 h-10 border-4 border-morandi-main border-t-transparent rounded-full spin mb-4"></div>
-                        <p className="text-morandi-main font-bold tracking-widest animate-pulse">READING CHAT LOG...</p>
+            if (view === 'error') return (
+                <div className="min-h-screen flex flex-col items-center justify-center bg-morandi-bg p-8 text-center">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md">
+                        <h2 className="text-xl font-bold text-morandi-error mb-4">讀取失敗</h2>
+                        <p className="text-morandi-text mb-6 text-sm">{errorMessage}</p>
+                        <button onClick={() => window.location.reload()} className="px-6 py-2 bg-morandi-main text-white rounded-lg">重試</button>
                     </div>
-                );
-            }
+                </div>
+            );
 
-            // 2. Error
-            if (view === 'error') {
-                return (
-                    <div className="min-h-screen flex flex-col items-center justify-center bg-morandi-bg p-8 text-center">
-                        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md">
-                            <h2 className="text-xl font-bold text-morandi-error mb-4">讀取失敗</h2>
-                            <p className="text-morandi-text mb-6 text-sm leading-relaxed">{errorMessage}</p>
-                            <p className="text-xs text-gray-400">
-                                請確認 <code>index.html</code> 與 <code>line-chat.txt</code> 位於同一目錄。
-                            </p>
-                            <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-morandi-main text-white rounded-lg">
-                                重試
+            if (view === 'menu') return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-morandi-bg">
+                    <div className="glass-card w-full max-w-md p-8 rounded-3xl z-10 slide-up text-center">
+                        <h1 className="text-3xl font-serif font-bold text-morandi-text mb-2 tracking-wide">默契大考驗</h1>
+                        <p className="text-morandi-main text-xs uppercase tracking-[0.2em] mb-8">Stella & 凱晨 專屬版</p>
+                        <div className="space-y-4">
+                            <button onClick={() => startQuiz('Stella')} className="w-full py-5 rounded-xl bg-white border border-morandi-accent text-morandi-text hover:bg-morandi-main hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch">
+                                <span className="text-2xl">👩🏻</span>
+                                <div className="text-left"><span className="block font-bold text-lg">我是 Stella</span><span className="text-xs opacity-70">開始測驗</span></div>
+                            </button>
+                            <button onClick={() => startQuiz('凱晨')} className="w-full py-5 rounded-xl bg-white border border-morandi-main text-morandi-text hover:bg-morandi-dark hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch">
+                                <span className="text-2xl">👦🏻</span>
+                                <div className="text-left"><span className="block font-bold text-lg">我是 凱晨</span><span className="text-xs opacity-70">開始測驗</span></div>
                             </button>
                         </div>
                     </div>
-                );
-            }
+                </div>
+            );
 
-            // 3. Menu
-            if (view === 'menu') {
-                return (
-                    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-morandi-bg relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-64 h-64 bg-morandi-main opacity-10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-                        
-                        <div className="glass-card w-full max-w-md p-8 rounded-3xl z-10 slide-up text-center">
-                            <h1 className="text-3xl font-serif font-bold text-morandi-text mb-2 tracking-wide">默契大考驗</h1>
-                            <p className="text-morandi-main text-xs uppercase tracking-[0.2em] mb-8">Compatibility Quiz</p>
-                            
-                            <p className="text-sm text-morandi-text mb-6">已成功讀取對話紀錄<br/>並生成 <span className="font-bold text-morandi-main">{questions.length}</span> 道專屬題目</p>
-
-                            <div className="space-y-4">
-                                <button 
-                                    onClick={() => startQuiz('Stella')}
-                                    className="w-full py-5 rounded-xl bg-white border border-morandi-accent text-morandi-text hover:bg-morandi-main hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch"
-                                >
-                                    <span className="text-2xl">👩🏻</span>
-                                    <div className="text-left">
-                                        <span className="block font-bold text-lg">我是 Stella</span>
-                                        <span className="text-xs opacity-70">開始測驗</span>
-                                    </div>
-                                </button>
-                                <button 
-                                    onClick={() => startQuiz('凱晨')}
-                                    className="w-full py-5 rounded-xl bg-white border border-morandi-main text-morandi-text hover:bg-morandi-dark hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch"
-                                >
-                                    <span className="text-2xl">👦🏻</span>
-                                    <div className="text-left">
-                                        <span className="block font-bold text-lg">我是 凱晨</span>
-                                        <span className="text-xs opacity-70">開始測驗</span>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            // 4. Quiz
             if (view === 'quiz') {
                 const q = currentQuizSet[currentQIndex];
                 const progress = ((currentQIndex + 1) / 20) * 100;
-
                 return (
                     <div className="min-h-screen flex flex-col bg-morandi-bg">
                         <div className="h-1.5 w-full bg-gray-200 fixed top-0 z-50">
                             <div className="h-full bg-morandi-main transition-all duration-300" style={{width: `${progress}%`}}></div>
                         </div>
-
                         <div className="flex-1 flex flex-col max-w-md mx-auto w-full p-6 pt-12">
                             <div className="flex justify-between items-center mb-6">
                                 <span className="text-morandi-main font-bold text-lg font-serif">Q{currentQIndex + 1}</span>
-                                <span className="px-3 py-1 bg-white rounded-full text-xs text-morandi-sub shadow-sm">
-                                    {currentUser} 的挑戰
-                                </span>
+                                <span className="px-3 py-1 bg-white rounded-full text-xs text-morandi-sub shadow-sm">{currentUser} 的挑戰</span>
                             </div>
-
                             <div className="bg-white rounded-3xl p-8 shadow-sm mb-6 min-h-[180px] flex items-center justify-center border border-gray-100 slide-up">
-                                <h2 className="text-xl font-bold text-morandi-text text-center leading-relaxed">
-                                    {q.text}
-                                </h2>
+                                <h2 className="text-xl font-bold text-morandi-text text-center leading-relaxed">{q.text}</h2>
                             </div>
-
                             <div className="space-y-3">
-                                {q.options.map((opt, idx) => {
-                                    const isSelected = answers[q.id] === opt;
+                                {q.options.map((opt, idx) => (
+                                    <button key={idx} onClick={() => handleAnswer(opt)} className="w-full p-4 rounded-xl text-left transition-all duration-200 border bg-white text-morandi-text border-transparent shadow-sm hover:border-morandi-accent btn-touch">
+                                        <span className="font-medium text-base">{opt}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'result') return (
+                <div className="min-h-screen bg-morandi-bg p-6 flex flex-col items-center justify-center">
+                    <div className="w-full max-w-md slide-up">
+                        <div className="bg-white rounded-3xl p-8 shadow-xl text-center mb-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-morandi-main to-morandi-accent"></div>
+                            <h2 className="text-morandi-sub text-xs uppercase tracking-widest mb-4">Final Score</h2>
+                            <div className="text-7xl font-serif font-bold text-morandi-text mb-4">{score}</div>
+                            <p className="text-morandi-dark font-medium px-4 mb-6">{score >= 80 ? "超級有默契！" : score >= 60 ? "還不錯喔！" : "再加油 XD"}</p>
+                            <div className="text-left bg-gray-50 rounded-xl p-4 max-h-60 overflow-y-auto mb-6 text-sm">
+                                <h3 className="font-bold text-morandi-text mb-2">答錯題目檢討：</h3>
+                                {currentQuizSet.map((q, idx) => {
+                                    const myAns = answers[q.id];
+                                    if (myAns === q.answer) return null;
                                     return (
-                                        <button
-                                            key={idx}
-                                            onClick={() => handleAnswer(opt)}
-                                            className={`w-full p-4 rounded-xl text-left transition-all duration-200 border btn-touch
-                                                ${isSelected 
-                                                    ? 'bg-morandi-main text-white border-morandi-main shadow-md' 
-                                                    : 'bg-white text-morandi-text border-transparent shadow-sm hover:border-morandi-accent'
-                                                }
-                                            `}
-                                        >
-                                            <span className="font-medium text-base">{opt}</span>
-                                        </button>
-                                    )
+                                        <div key={q.id} className="mb-3 border-b border-gray-200 pb-2 last:border-0">
+                                            <p className="text-gray-800 mb-1">{idx+1}. {q.text}</p>
+                                            <div className="flex justify-between text-xs"><span className="text-morandi-error">你: {myAns}</span><span className="text-morandi-main font-bold">正解: {q.answer}</span></div>
+                                        </div>
+                                    );
                                 })}
                             </div>
                         </div>
-                    </div>
-                );
-            }
-
-            // 5. Result
-            if (view === 'result') {
-                return (
-                    <div className="min-h-screen bg-morandi-bg p-6 flex flex-col items-center justify-center">
-                        <div className="w-full max-w-md slide-up">
-                            <div className="bg-white rounded-3xl p-8 shadow-xl text-center mb-6 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-morandi-main to-morandi-accent"></div>
-                                
-                                <h2 className="text-morandi-sub text-xs uppercase tracking-widest mb-4">Final Score</h2>
-                                <div className="text-7xl font-serif font-bold text-morandi-text mb-4">
-                                    {score}
-                                </div>
-                                <p className="text-morandi-dark font-medium px-4 mb-6">
-                                    {score === 100 ? "太神了！你們是不是偷看答案？" :
-                                     score >= 80 ? "超級有默契！根本是靈魂伴侶" :
-                                     score >= 60 ? "還不錯喔，但有些細節需要複習" :
-                                     "這...建議多看幾次對話紀錄 XD"}
-                                </p>
-
-                                <div className="text-left bg-gray-50 rounded-xl p-4 max-h-60 overflow-y-auto mb-6 text-sm">
-                                    <h3 className="font-bold text-morandi-text mb-2 sticky top-0 bg-gray-50">答錯題目檢討：</h3>
-                                    {currentQuizSet.map((q, idx) => {
-                                        const myAns = answers[q.id];
-                                        if (myAns === q.answer) return null;
-                                        return (
-                                            <div key={q.id} className="mb-3 border-b border-gray-200 pb-2 last:border-0">
-                                                <p className="text-gray-800 mb-1">{idx+1}. {q.text}</p>
-                                                <div className="flex justify-between text-xs">
-                                                    <span className="text-morandi-error">你: {myAns}</span>
-                                                    <span className="text-morandi-main font-bold">正解: {q.answer}</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {score === 100 && <p className="text-center text-gray-400">沒有答錯的題目，完美！</p>}
-                                </div>
-                            </div>
-
-                            <div className="flex gap-4">
-                                <button 
-                                    onClick={() => startQuiz(currentUser)}
-                                    className="flex-1 py-4 bg-morandi-main text-white rounded-xl font-bold shadow-lg btn-touch"
-                                >
-                                    再玩一次
-                                </button>
-                                <button 
-                                    onClick={() => setView('menu')}
-                                    className="flex-1 py-4 bg-white text-morandi-text border border-gray-200 rounded-xl font-bold shadow-sm btn-touch"
-                                >
-                                    換人挑戰
-                                </button>
-                            </div>
+                        <div className="flex gap-4">
+                            <button onClick={() => startQuiz(currentUser)} className="flex-1 py-4 bg-morandi-main text-white rounded-xl font-bold shadow-lg">再玩一次</button>
+                            <button onClick={() => setView('menu')} className="flex-1 py-4 bg-white text-morandi-text border border-gray-200 rounded-xl font-bold">換人挑戰</button>
                         </div>
                     </div>
-                );
-            }
+                </div>
+            );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
