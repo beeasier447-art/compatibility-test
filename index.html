@@ -7,7 +7,7 @@
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Tailwind CSS -->
@@ -30,7 +30,9 @@
                             accent: '#D4C4B7',   /* 奶茶色 */
                             text: '#434343',     /* 炭灰 */
                             sub: '#949494',      /* 銀灰 */
-                            error: '#C68E8E'     /* 乾燥玫瑰紅 */
+                            error: '#C68E8E',    /* 乾燥玫瑰紅 */
+                            stella: '#B5C0B3',   /* Stella 專屬綠 */
+                            kevin: '#B2BCC2'     /* 凱晨 專屬藍灰 */
                         }
                     },
                     fontFamily: {
@@ -70,8 +72,11 @@
             box-shadow: 0 10px 40px rgba(95, 108, 108, 0.08);
         }
 
-        .btn-touch { transition: all 0.2s; }
-        .btn-touch:active { transform: scale(0.98); }
+        .btn-touch { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-touch:active { transform: scale(0.95); }
+        .btn-touch:hover .avatar-icon { transform: scale(1.1) rotate(5deg); }
+        
+        .avatar-icon { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 <body>
@@ -79,6 +84,35 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
+
+        // --------------------------------------------------
+        // 可愛頭像組件 (SVG)
+        // --------------------------------------------------
+        
+        const StellaAvatar = () => (
+            <svg viewBox="0 0 100 100" className="w-16 h-16 avatar-icon">
+                <circle cx="50" cy="50" r="48" fill="#B5C0B3" />
+                <path d="M50 25c-15 0-22 10-22 20 0 15 10 25 22 25s22-10 22-25c0-10-7-20-22-20z" fill="#FFF" opacity="0.9" />
+                <circle cx="40" cy="45" r="3" fill="#5F6C6C" />
+                <circle cx="60" cy="45" r="3" fill="#5F6C6C" />
+                <path d="M45 55c2 2 8 2 10 0" stroke="#5F6C6C" strokeWidth="2" fill="none" strokeLinecap="round" />
+                <path d="M28 45c-5-5-2-15 2-18 8-5 25-5 35 2 5 4 8 15 5 20" fill="none" stroke="#FFF" strokeWidth="3" strokeLinecap="round" />
+                <circle cx="35" cy="50" r="4" fill="#E8B7B7" opacity="0.4" />
+                <circle cx="65" cy="50" r="4" fill="#E8B7B7" opacity="0.4" />
+            </svg>
+        );
+
+        const KevinAvatar = () => (
+            <svg viewBox="0 0 100 100" className="w-16 h-16 avatar-icon">
+                <circle cx="50" cy="50" r="48" fill="#B2BCC2" />
+                <path d="M50 28c-12 0-20 8-20 18 0 12 8 22 20 22s20-10 20-22c0-10-8-18-20-18z" fill="#FFF" opacity="0.9" />
+                <rect x="35" y="42" width="10" height="10" rx="2" fill="none" stroke="#5F6C6C" strokeWidth="1.5" />
+                <rect x="55" y="42" width="10" height="10" rx="2" fill="none" stroke="#5F6C6C" strokeWidth="1.5" />
+                <path d="M45 47h10" stroke="#5F6C6C" strokeWidth="1.5" />
+                <path d="M47 58h6" stroke="#5F6C6C" strokeWidth="2" strokeLinecap="round" />
+                <path d="M30 40c0-10 10-15 20-15s20 5 20 15" fill="none" stroke="#FFF" strokeWidth="4" strokeLinecap="round" />
+            </svg>
+        );
 
         // --------------------------------------------------
         // 核心邏輯：Chat Parser & Generator
@@ -147,7 +181,6 @@
 
                 const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
 
-                // 1. 語錄題
                 const validQuotes = this.messages.filter(m => 
                     m.length >= 4 && m.length < 35 && !m.isSticker && !m.isImage && !m.content.includes('http')
                 );
@@ -162,7 +195,6 @@
                     });
                 });
 
-                // 2. 填空題
                 const keywordTypes = ['items', 'food', 'locations', 'actions'];
                 keywordTypes.forEach(kType => {
                     const words = KEYWORDS[kType];
@@ -188,7 +220,6 @@
                     });
                 });
 
-                // 3. 統計題
                 const stickerCounts = { Stella: 0, 凱晨: 0 };
                 this.messages.forEach(m => { if (m.isSticker) stickerCounts[m.speaker]++; });
                 questions.push({
@@ -231,12 +262,12 @@
             const [score, setScore] = useState(0);
 
             const [history, setHistory] = useState(() => {
-                const saved = localStorage.getItem('quiz_history_final');
+                const saved = localStorage.getItem('quiz_history_final_v2');
                 return saved ? JSON.parse(saved) : { Stella: [], 凱晨: [] };
             });
 
             useEffect(() => {
-                localStorage.setItem('quiz_history_final', JSON.stringify(history));
+                localStorage.setItem('quiz_history_final_v2', JSON.stringify(history));
             }, [history]);
 
             useEffect(() => {
@@ -322,15 +353,33 @@
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-morandi-bg">
                     <div className="glass-card w-full max-w-md p-8 rounded-3xl z-10 slide-up text-center">
                         <h1 className="text-3xl font-serif font-bold text-morandi-text mb-2 tracking-wide">默契大考驗</h1>
-                        <p className="text-morandi-main text-xs uppercase tracking-[0.2em] mb-8">Stella & 凱晨 專屬版</p>
-                        <div className="space-y-4">
-                            <button onClick={() => startQuiz('Stella')} className="w-full py-5 rounded-xl bg-white border border-morandi-accent text-morandi-text hover:bg-morandi-main hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch">
-                                <span className="text-2xl">👩🏻</span>
-                                <div className="text-left"><span className="block font-bold text-lg">我是 Stella</span><span className="text-xs opacity-70">開始測驗</span></div>
+                        <p className="text-morandi-main text-xs uppercase tracking-[0.2em] mb-10">Stella & 凱晨 專屬版</p>
+                        
+                        <div className="space-y-6">
+                            <button 
+                                onClick={() => startQuiz('Stella')} 
+                                className="w-full p-4 rounded-2xl bg-white border border-morandi-accent hover:border-morandi-stella hover:bg-morandi-stella/5 transition-all shadow-sm flex items-center space-x-6 btn-touch group"
+                            >
+                                <div className="flex-shrink-0">
+                                    <StellaAvatar />
+                                </div>
+                                <div className="text-left">
+                                    <span className="block font-bold text-xl text-morandi-text group-hover:text-morandi-dark">我是 Stella</span>
+                                    <span className="text-xs text-morandi-sub">點擊開始挑戰</span>
+                                </div>
                             </button>
-                            <button onClick={() => startQuiz('凱晨')} className="w-full py-5 rounded-xl bg-white border border-morandi-main text-morandi-text hover:bg-morandi-dark hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch">
-                                <span className="text-2xl">👦🏻</span>
-                                <div className="text-left"><span className="block font-bold text-lg">我是 凱晨</span><span className="text-xs opacity-70">開始測驗</span></div>
+
+                            <button 
+                                onClick={() => startQuiz('凱晨')} 
+                                className="w-full p-4 rounded-2xl bg-white border border-morandi-main hover:border-morandi-kevin hover:bg-morandi-kevin/5 transition-all shadow-sm flex items-center space-x-6 btn-touch group"
+                            >
+                                <div className="flex-shrink-0">
+                                    <KevinAvatar />
+                                </div>
+                                <div className="text-left">
+                                    <span className="block font-bold text-xl text-morandi-text group-hover:text-morandi-dark">我是 凱晨</span>
+                                    <span className="text-xs text-morandi-sub">點擊開始挑戰</span>
+                                </div>
                             </button>
                         </div>
                     </div>
