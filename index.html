@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>默契大考驗 | Stella & Kevin</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Config & Styles -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        morandi: {
+                            bg: '#F5F5F3',       /* 溫暖米灰 */
+                            card: '#FFFFFF',
+                            primary: '#7A8B8B',  /* 霧灰綠 */
+                            secondary: '#B59F9F',/* 藕粉色 */
+                            accent: '#A6A58D',   /* 乾草綠 */
+                            text: '#4A4A4A',     /* 深灰 */
+                            light: '#9E9E9E'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                        serif: ['Noto Serif TC', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #F5F5F3; }
+        .fade-enter { opacity: 0; transform: translateY(10px); }
+        .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 300ms, transform 300ms; }
+        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --------------------------------------------------
+        // 資料庫：基於上傳的對話紀錄提取
+        // --------------------------------------------------
+        const DEFAULT_QUESTIONS = [
+            { id: 1, type: "fact", question: "12月13日早上，Stella 發生了什麼緊急狀況？", options: ["忘記帶錢包", "忘記帶鑰匙", "車子發不動", "睡過頭遲到"], answer: "忘記帶鑰匙" },
+            { id: 2, type: "habit", question: "兩人的對話中，最常出現的「狀聲詞」或口頭禪是什麼？", options: ["哈囉", "逼 (Bii)", "嘿", "喂"], answer: "逼 (Bii)" },
+            { id: 3, type: "nickname", question: "Stella 最常用哪種動物來稱呼自己或對方？", options: ["貓咪", "狗狗", "皮卡丘/胖丘", "小豬"], answer: "皮卡丘/胖丘" },
+            { id: 4, type: "fact", question: "Stella 曾經因為什麼事情在「薑母鴨店」大哭？", options: ["太好吃", "凱晨不吃鴨肉", "環境太吵雜", "被湯燙到"], answer: "環境太吵雜" },
+            { id: 5, type: "preference", question: "關於工作，Stella 最討厭前公司（台銀）的哪個部分？", options: ["奧客太多", "對帳單與歸檔", "制服很醜", "沒有午休"], answer: "對帳單與歸檔" },
+            { id: 6, type: "fact", question: "凱晨曾經送過什麼「高科技」但被 Stella 嫌棄不實用的禮物？", options: ["掃地機器人", "智慧垃圾桶 (iTrash)", "空拍機", "電子書"], answer: "智慧垃圾桶 (iTrash)" },
+            { id: 7, type: "fact", question: "他們原定計畫去哪個國家旅遊？", options: ["日本", "韓國", "澳洲", "泰國"], answer: "澳洲" },
+            { id: 8, type: "fact", question: "誰的電腦處理器是第 9 代，被討論到效能問題？", options: ["Stella", "黃凱晨", "公司電腦", "家裡的電視"], answer: "黃凱晨" },
+            { id: 9, type: "food", question: "他們常一起吃的早餐店叫什麼名字？", options: ["美而美", "春米", "拉亞", "麥味登"], answer: "春米" },
+            { id: 10, type: "fact", question: "Stella 提到辦公室有什麼點心時，說了「已吃」？", options: ["鳳梨酥", "黑糖糕", "太陽餅", "蛋塔"], answer: "黑糖糕" },
+            { id: 11, type: "fact", question: "在股票操作上，Stella 自嘲是什麼身分？", options: ["華爾街之狼", "當沖女王", "空蛙/家政婦", "長期投資者"], answer: "空蛙/家政婦" },
+            { id: 12, type: "fact", question: "Stella 曾經考慮去哪個診所/機構工作？", options: ["香柏木", "愛仁", "大學眼科", "禾馨"], answer: "香柏木" },
+            { id: 13, type: "preference", question: "Stella 覺得哪家銀行的系統很爛，常有 Bug？", options: ["台銀", "中信", "星展", "富邦"], answer: "星展" },
+            { id: 14, type: "fact", question: "誰曾經因為違規停車被開罰單？", options: ["Stella", "黃凱晨", "兩個人都因為這樣被罰", "沒有人"], answer: "黃凱晨" },
+            { id: 15, type: "food", question: "Stella 覺得哪一家的珍珠鮮奶茶「像水一樣」很難喝？", options: ["50嵐", "萬家香早餐店", "迷客夏", "可不可"], answer: "萬家香早餐店" }
+        ];
+
+        // --------------------------------------------------
+        // 元件：SVG Icons
+        // --------------------------------------------------
+        const HeartIcon = () => (
+            <svg className="w-6 h-6 text-morandi-secondary fill-current" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+        );
+
+        const UploadIcon = () => (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+        );
+
+        // --------------------------------------------------
+        // 主應用程式
+        // --------------------------------------------------
+        function App() {
+            // 狀態管理
+            const [gameStage, setGameStage] = useState('welcome'); // welcome, p1_turn, intermission, p2_turn, calculating, result
+            const [p1Name, setP1Name] = useState('庭暄 Stella');
+            const [p2Name, setP2Name] = useState('黃凱晨');
+            const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
+            const [currentQIndex, setCurrentQIndex] = useState(0);
+            
+            // 答案儲存: { questionId: selectedOption }
+            const [p1Answers, setP1Answers] = useState({});
+            const [p2Answers, setP2Answers] = useState({});
+
+            // 隨機選題 (每次遊戲取 10 題)
+            const initGame = () => {
+                const shuffled = [...questions].sort(() => 0.5 - Math.random()).slice(0, 10);
+                setQuestions(shuffled);
+                setCurrentQIndex(0);
+                setP1Answers({});
+                setP2Answers({});
+                setGameStage('p1_turn');
+            };
+
+            // 處理回答
+            const handleAnswer = (option) => {
+                const currentQ = questions[currentQIndex];
+                
+                if (gameStage === 'p1_turn') {
+                    setP1Answers(prev => ({ ...prev, [currentQ.id]: option }));
+                } else {
+                    setP2Answers(prev => ({ ...prev, [currentQ.id]: option }));
+                }
+
+                // 延遲跳轉
+                setTimeout(() => {
+                    if (currentQIndex < questions.length - 1) {
+                        setCurrentQIndex(prev => prev + 1);
+                    } else {
+                        // 當前玩家題目做完
+                        if (gameStage === 'p1_turn') {
+                            setGameStage('intermission');
+                            setCurrentQIndex(0);
+                        } else {
+                            setGameStage('calculating');
+                            setTimeout(() => setGameStage('result'), 2000);
+                        }
+                    }
+                }, 400);
+            };
+
+            // 計算分數
+            const calculateResult = () => {
+                let score = 0;
+                let details = [];
+
+                questions.forEach(q => {
+                    const ans1 = p1Answers[q.id];
+                    const ans2 = p2Answers[q.id];
+                    const correct = q.answer;
+                    
+                    // 邏輯：兩人都答對才算這題有默契/有記憶
+                    // 或者：兩人都選一樣的答案（即使是錯的，代表這也是一種默契）
+                    const isMatch = ans1 === ans2;
+                    const isCorrect = ans1 === correct && ans2 === correct;
+                    
+                    if (isMatch) score += 10;
+
+                    details.push({
+                        question: q.question,
+                        ans1,
+                        ans2,
+                        correct,
+                        isMatch
+                    });
+                });
+
+                return { score, details };
+            };
+
+            // 渲染：歡迎頁面
+            if (gameStage === 'welcome') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#F5F5F3] to-[#E8E6E1]">
+                        <div className="glass-card w-full max-w-md p-8 rounded-3xl shadow-xl text-center slide-up">
+                            <div className="flex justify-center mb-6">
+                                <div className="bg-morandi-secondary/20 p-4 rounded-full">
+                                    <HeartIcon />
+                                </div>
+                            </div>
+                            <h1 className="text-3xl font-serif font-bold text-morandi-text mb-2">默契大考驗</h1>
+                            <p className="text-morandi-primary mb-8 text-sm tracking-widest">RELATIONSHIP QUIZ</p>
+                            
+                            <div className="space-y-4 mb-8 text-left">
+                                <div>
+                                    <label className="text-xs text-morandi-light font-bold uppercase tracking-wider ml-1">Player 1</label>
+                                    <input 
+                                        type="text" 
+                                        value={p1Name} 
+                                        onChange={(e) => setP1Name(e.target.value)}
+                                        className="w-full mt-1 p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-morandi-primary text-morandi-text"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-morandi-light font-bold uppercase tracking-wider ml-1">Player 2</label>
+                                    <input 
+                                        type="text" 
+                                        value={p2Name} 
+                                        onChange={(e) => setP2Name(e.target.value)}
+                                        className="w-full mt-1 p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-morandi-primary text-morandi-text"
+                                    />
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={initGame}
+                                className="w-full py-4 bg-morandi-primary text-white rounded-xl font-bold shadow-lg hover:bg-[#6A7B7B] transition-all transform hover:-translate-y-1 mb-4"
+                            >
+                                開始測驗
+                            </button>
+                            
+                            <p className="text-xs text-morandi-light mt-4">
+                                根據上傳的對話紀錄自動生成<br/>
+                                包含生活趣事、習慣用語與共同回憶
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 渲染：中場休息（換人）
+            if (gameStage === 'intermission') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-morandi-primary/10">
+                        <div className="glass-card w-full max-w-md p-10 rounded-3xl shadow-xl text-center slide-up">
+                            <h2 className="text-2xl font-bold text-morandi-text mb-4">{p1Name} 作答完成！</h2>
+                            <p className="text-morandi-text/80 mb-8 leading-relaxed">
+                                請將手機/電腦交給 <span className="font-bold text-morandi-primary">{p2Name}</span><br/>
+                                接下來換他接受挑戰。
+                            </p>
+                            <div className="w-20 h-20 bg-white rounded-full mx-auto mb-8 flex items-center justify-center shadow-inner">
+                                <span className="text-3xl">🤫</span>
+                            </div>
+                            <button 
+                                onClick={() => setGameStage('p2_turn')}
+                                className="w-full py-4 bg-morandi-secondary text-white rounded-xl font-bold shadow-lg hover:opacity-90 transition-all"
+                            >
+                                我是 {p2Name}，開始作答
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 渲染：計算中
+            if (gameStage === 'calculating') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-morandi-primary mx-auto mb-4"></div>
+                            <p className="text-morandi-text font-serif text-xl">正在分析兩人默契...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 渲染：結果頁
+            if (gameStage === 'result') {
+                const { score, details } = calculateResult();
+                return (
+                    <div className="min-h-screen p-4 md:p-8 bg-[#F5F5F3]">
+                        <div className="max-w-2xl mx-auto space-y-6">
+                            {/* 總分卡片 */}
+                            <div className="glass-card p-8 rounded-3xl shadow-lg text-center slide-up relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-morandi-primary to-morandi-secondary"></div>
+                                <h2 className="text-morandi-light text-sm tracking-widest uppercase mb-2">Matching Score</h2>
+                                <div className="text-7xl font-serif font-bold text-morandi-text mb-2">{score}%</div>
+                                <p className="text-morandi-primary font-medium">
+                                    {score === 100 ? "靈魂伴侶！皮卡丘都驚呆了！" : 
+                                     score >= 80 ? "超級有默契！根本是老夫老妻" :
+                                     score >= 60 ? "還不錯喔，但有些回憶需要複習" :
+                                     "看來需要多去吃幾次春米培養感情了 XD"}
+                                </p>
+                            </div>
+
+                            {/* 詳細比對 */}
+                            <div className="space-y-4">
+                                <h3 className="text-morandi-text font-bold ml-2">答題詳情</h3>
+                                {details.map((item, idx) => (
+                                    <div key={idx} className={`bg-white p-5 rounded-2xl shadow-sm border-l-4 ${item.isMatch ? 'border-morandi-primary' : 'border-morandi-secondary'} slide-up`} style={{animationDelay: `${idx * 100}ms`}}>
+                                        <p className="font-medium text-morandi-text mb-3 text-lg">{item.question}</p>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <span className="block text-xs text-gray-400 mb-1">{p1Name}</span>
+                                                <span className={`${item.ans1 === item.correct ? 'text-morandi-primary font-bold' : 'text-gray-600'}`}>{item.ans1}</span>
+                                            </div>
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <span className="block text-xs text-gray-400 mb-1">{p2Name}</span>
+                                                <span className={`${item.ans2 === item.correct ? 'text-morandi-primary font-bold' : 'text-gray-600'}`}>{item.ans2}</span>
+                                            </div>
+                                        </div>
+                                        {!item.isMatch && (
+                                            <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-morandi-secondary">
+                                                💡 答案不一致！正確答案是：{item.correct}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button 
+                                onClick={() => setGameStage('welcome')}
+                                className="w-full py-4 bg-white border border-morandi-primary text-morandi-primary rounded-xl font-bold hover:bg-morandi-primary hover:text-white transition-colors"
+                            >
+                                再玩一次
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 渲染：答題中 (通用介面)
+            const currentQ = questions[currentQIndex];
+            const currentPlayerName = gameStage === 'p1_turn' ? p1Name : p2Name;
+            const progress = ((currentQIndex + 1) / questions.length) * 100;
+
+            return (
+                <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto relative">
+                    {/* 進度條 */}
+                    <div className="w-full bg-gray-200 h-1.5 rounded-full mb-8 fixed top-0 left-0 z-50">
+                        <div className="bg-morandi-primary h-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col justify-center slide-up">
+                        <div className="mb-8">
+                            <span className="inline-block px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-morandi-primary mb-4 shadow-sm">
+                                Question {currentQIndex + 1} / {questions.length}
+                            </span>
+                            <span className="block text-xs text-gray-400 mb-2">正在作答: {currentPlayerName}</span>
+                            <h2 className="text-2xl font-bold text-morandi-text leading-relaxed">
+                                {currentQ.question}
+                            </h2>
+                        </div>
+
+                        <div className="space-y-3">
+                            {currentQ.options.map((opt, idx) => {
+                                // 判斷是否被選中
+                                const currentAnswers = gameStage === 'p1_turn' ? p1Answers : p2Answers;
+                                const isSelected = currentAnswers[currentQ.id] === opt;
+                                
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleAnswer(opt)}
+                                        className={`w-full p-5 text-left rounded-2xl transition-all duration-200 border 
+                                            ${isSelected 
+                                                ? 'bg-morandi-primary text-white border-morandi-primary shadow-lg scale-[1.02]' 
+                                                : 'bg-white text-morandi-text border-gray-100 hover:border-morandi-primary/50 shadow-sm hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <span className="text-base font-medium">{opt}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
