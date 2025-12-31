@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>默契大考驗 | Stella & Kevin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>默契大考驗 | Compatibility Quiz</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -23,13 +23,14 @@
                 extend: {
                     colors: {
                         morandi: {
-                            bg: '#F5F5F3',       /* 溫暖米灰 */
+                            bg: '#F2F0EB',       /* 燕麥灰 */
                             card: '#FFFFFF',
-                            primary: '#7A8B8B',  /* 霧灰綠 */
-                            secondary: '#B59F9F',/* 藕粉色 */
-                            accent: '#A6A58D',   /* 乾草綠 */
-                            text: '#4A4A4A',     /* 深灰 */
-                            light: '#9E9E9E'
+                            dark: '#5F6C6C',     /* 鐵灰綠 */
+                            main: '#8F9E99',     /* 鼠尾草 */
+                            accent: '#D4C4B7',   /* 奶茶色 */
+                            text: '#434343',     /* 炭灰 */
+                            sub: '#949494',      /* 銀灰 */
+                            error: '#C68E8E'     /* 乾燥玫瑰紅 */
                         }
                     },
                     fontFamily: {
@@ -41,19 +42,36 @@
         }
     </script>
     <style>
-        body { background-color: #F5F5F3; }
-        .fade-enter { opacity: 0; transform: translateY(10px); }
-        .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 300ms, transform 300ms; }
-        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        body { 
+            background-color: #F2F0EB; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .spin { animation: spin 1s linear infinite; }
+        
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .glass-card {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 40px rgba(95, 108, 108, 0.08);
         }
+
+        .btn-touch { transition: all 0.2s; }
+        .btn-touch:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
@@ -63,310 +81,491 @@
         const { useState, useEffect, useRef } = React;
 
         // --------------------------------------------------
-        // 資料庫：基於上傳的對話紀錄提取
+        // 核心邏輯：Chat Parser & Generator
         // --------------------------------------------------
-        const DEFAULT_QUESTIONS = [
-            { id: 1, type: "fact", question: "12月13日早上，Stella 發生了什麼緊急狀況？", options: ["忘記帶錢包", "忘記帶鑰匙", "車子發不動", "睡過頭遲到"], answer: "忘記帶鑰匙" },
-            { id: 2, type: "habit", question: "兩人的對話中，最常出現的「狀聲詞」或口頭禪是什麼？", options: ["哈囉", "逼 (Bii)", "嘿", "喂"], answer: "逼 (Bii)" },
-            { id: 3, type: "nickname", question: "Stella 最常用哪種動物來稱呼自己或對方？", options: ["貓咪", "狗狗", "皮卡丘/胖丘", "小豬"], answer: "皮卡丘/胖丘" },
-            { id: 4, type: "fact", question: "Stella 曾經因為什麼事情在「薑母鴨店」大哭？", options: ["太好吃", "凱晨不吃鴨肉", "環境太吵雜", "被湯燙到"], answer: "環境太吵雜" },
-            { id: 5, type: "preference", question: "關於工作，Stella 最討厭前公司（台銀）的哪個部分？", options: ["奧客太多", "對帳單與歸檔", "制服很醜", "沒有午休"], answer: "對帳單與歸檔" },
-            { id: 6, type: "fact", question: "凱晨曾經送過什麼「高科技」但被 Stella 嫌棄不實用的禮物？", options: ["掃地機器人", "智慧垃圾桶 (iTrash)", "空拍機", "電子書"], answer: "智慧垃圾桶 (iTrash)" },
-            { id: 7, type: "fact", question: "他們原定計畫去哪個國家旅遊？", options: ["日本", "韓國", "澳洲", "泰國"], answer: "澳洲" },
-            { id: 8, type: "fact", question: "誰的電腦處理器是第 9 代，被討論到效能問題？", options: ["Stella", "黃凱晨", "公司電腦", "家裡的電視"], answer: "黃凱晨" },
-            { id: 9, type: "food", question: "他們常一起吃的早餐店叫什麼名字？", options: ["美而美", "春米", "拉亞", "麥味登"], answer: "春米" },
-            { id: 10, type: "fact", question: "Stella 提到辦公室有什麼點心時，說了「已吃」？", options: ["鳳梨酥", "黑糖糕", "太陽餅", "蛋塔"], answer: "黑糖糕" },
-            { id: 11, type: "fact", question: "在股票操作上，Stella 自嘲是什麼身分？", options: ["華爾街之狼", "當沖女王", "空蛙/家政婦", "長期投資者"], answer: "空蛙/家政婦" },
-            { id: 12, type: "fact", question: "Stella 曾經考慮去哪個診所/機構工作？", options: ["香柏木", "愛仁", "大學眼科", "禾馨"], answer: "香柏木" },
-            { id: 13, type: "preference", question: "Stella 覺得哪家銀行的系統很爛，常有 Bug？", options: ["台銀", "中信", "星展", "富邦"], answer: "星展" },
-            { id: 14, type: "fact", question: "誰曾經因為違規停車被開罰單？", options: ["Stella", "黃凱晨", "兩個人都因為這樣被罰", "沒有人"], answer: "黃凱晨" },
-            { id: 15, type: "food", question: "Stella 覺得哪一家的珍珠鮮奶茶「像水一樣」很難喝？", options: ["50嵐", "萬家香早餐店", "迷客夏", "可不可"], answer: "萬家香早餐店" }
-        ];
+        
+        // 關鍵字字典，用於生成填空題
+        const KEYWORDS = {
+            items: ['鑰匙', '錢包', '手機', '印章', '存摺', '雨傘', '便當', '外套', '眼鏡', '垃圾', '安全帽', '悠遊卡', '信用卡'],
+            food: ['早餐', '午餐', '晚餐', '麥當勞', '肯德基', '火鍋', '燒肉', '拉麵', '奶茶', '咖啡', '黑糖糕', '吐司', '蛋餅', '雞排', '滷肉飯', '壽司', '水餃'],
+            actions: ['上班', '下班', '加班', '睡覺', '賴床', '洗澡', '生氣', '大哭', '開心', '焦慮', '大笑', '遲到', '請假'],
+            locations: ['公司', '家裡', '捷運', '澳洲', '日本', '台銀', '診所', '春米', '萬家香', '茶葉行', '牙醫', '全聯', '超商'],
+            people: ['經理', '老闆', '同事', '客戶', '阿北', '阿姨', '老公', '老婆', '房東']
+        };
 
-        // --------------------------------------------------
-        // 元件：SVG Icons
-        // --------------------------------------------------
-        const HeartIcon = () => (
-            <svg className="w-6 h-6 text-morandi-secondary fill-current" viewBox="0 0 24 24">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-            </svg>
-        );
+        class ChatParser {
+            constructor() {
+                this.messages = [];
+            }
 
-        const UploadIcon = () => (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-        );
+            // 解析 Tab 分隔的文字內容
+            parse(text) {
+                const lines = text.split('\n');
+                this.messages = [];
+                let currentDate = '';
 
-        // --------------------------------------------------
-        // 主應用程式
-        // --------------------------------------------------
-        function App() {
-            // 狀態管理
-            const [gameStage, setGameStage] = useState('welcome'); // welcome, p1_turn, intermission, p2_turn, calculating, result
-            const [p1Name, setP1Name] = useState('庭暄 Stella');
-            const [p2Name, setP2Name] = useState('黃凱晨');
-            const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
-            const [currentQIndex, setCurrentQIndex] = useState(0);
-            
-            // 答案儲存: { questionId: selectedOption }
-            const [p1Answers, setP1Answers] = useState({});
-            const [p2Answers, setP2Answers] = useState({});
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (!line) return;
 
-            // 隨機選題 (每次遊戲取 10 題)
-            const initGame = () => {
-                const shuffled = [...questions].sort(() => 0.5 - Math.random()).slice(0, 10);
-                setQuestions(shuffled);
-                setCurrentQIndex(0);
-                setP1Answers({});
-                setP2Answers({});
-                setGameStage('p1_turn');
-            };
+                    // 1. 嘗試捕捉日期 (LINE 格式通常有單獨一行日期)
+                    // 格式多變，嘗試捕捉常見格式
+                    if (line.match(/^\d{4}\/\d{1,2}\/\d{1,2}/) || line.match(/^[A-Za-z]{3}, \d{2}\/\d{2}\/\d{4}/)) {
+                        currentDate = line;
+                        return;
+                    }
 
-            // 處理回答
-            const handleAnswer = (option) => {
-                const currentQ = questions[currentQIndex];
-                
-                if (gameStage === 'p1_turn') {
-                    setP1Answers(prev => ({ ...prev, [currentQ.id]: option }));
-                } else {
-                    setP2Answers(prev => ({ ...prev, [currentQ.id]: option }));
-                }
+                    // 2. 分割：時間 <TAB> 名字 <TAB> 訊息
+                    const parts = line.split('\t');
 
-                // 延遲跳轉
-                setTimeout(() => {
-                    if (currentQIndex < questions.length - 1) {
-                        setCurrentQIndex(prev => prev + 1);
-                    } else {
-                        // 當前玩家題目做完
-                        if (gameStage === 'p1_turn') {
-                            setGameStage('intermission');
-                            setCurrentQIndex(0);
-                        } else {
-                            setGameStage('calculating');
-                            setTimeout(() => setGameStage('result'), 2000);
+                    if (parts.length >= 3) {
+                        const time = parts[0].trim();
+                        const rawName = parts[1].trim();
+                        const content = parts.slice(2).join(' ').trim();
+
+                        // 3. 參與者標準化
+                        let speaker = null;
+                        if (rawName.includes('Stella')) {
+                            speaker = 'Stella';
+                        } else if (rawName.includes('凱晨')) {
+                            speaker = '凱晨';
+                        }
+
+                        if (speaker && content) {
+                            this.messages.push({
+                                date: currentDate,
+                                time,
+                                rawName,
+                                speaker,
+                                content,
+                                length: content.length,
+                                isSticker: content.includes('[貼圖]') || content === '貼圖',
+                                isImage: content.includes('[照片]') || content === '照片' || content.includes('sent a photo')
+                            });
                         }
                     }
-                }, 400);
-            };
+                });
+                return this.messages;
+            }
 
-            // 計算分數
-            const calculateResult = () => {
-                let score = 0;
-                let details = [];
+            // 生成題庫
+            generateQuestions(targetCount = 100) {
+                if (this.messages.length === 0) return [];
+                const questions = [];
+                let qId = 1;
 
-                questions.forEach(q => {
-                    const ans1 = p1Answers[q.id];
-                    const ans2 = p2Answers[q.id];
-                    const correct = q.answer;
-                    
-                    // 邏輯：兩人都答對才算這題有默契/有記憶
-                    // 或者：兩人都選一樣的答案（即使是錯的，代表這也是一種默契）
-                    const isMatch = ans1 === ans2;
-                    const isCorrect = ans1 === correct && ans2 === correct;
-                    
-                    if (isMatch) score += 10;
+                const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
 
-                    details.push({
-                        question: q.question,
-                        ans1,
-                        ans2,
-                        correct,
-                        isMatch
+                // --- 1. 語錄題 (Quote) ---
+                // 挑選有意義的句子 (非貼圖、非網址、長度適中)
+                const validQuotes = this.messages.filter(m => 
+                    m.length >= 4 && m.length < 35 && 
+                    !m.isSticker && !m.isImage && 
+                    !m.content.includes('http') &&
+                    !m.content.includes('通話')
+                );
+                
+                shuffle(validQuotes).slice(0, 60).forEach(msg => {
+                    questions.push({
+                        id: qId++,
+                        type: 'quote',
+                        text: `請問是誰說了這句話：「${msg.content}」？`,
+                        options: ['Stella', '凱晨', '兩人都說過', '這句話是轉傳的'],
+                        answer: msg.speaker
                     });
                 });
 
-                return { score, details };
+                // --- 2. 填空題 (Cloze) ---
+                const keywordTypes = ['items', 'food', 'locations', 'actions', 'people'];
+                keywordTypes.forEach(kType => {
+                    const words = KEYWORDS[kType];
+                    // 找出包含這些關鍵字的訊息
+                    const candidates = this.messages.filter(m => words.some(w => m.content.includes(w)));
+                    
+                    shuffle(candidates).slice(0, 40).forEach(msg => {
+                        const targetWord = words.find(w => msg.content.includes(w));
+                        if (!targetWord) return;
+                        
+                        // 避免太短的句子做填空會很怪
+                        if (msg.length < 5) return;
+
+                        const maskedContent = msg.content.replace(targetWord, '＿＿');
+                        const distractors = shuffle(words.filter(w => w !== targetWord)).slice(0, 3);
+                        while(distractors.length < 3) distractors.push('東西');
+                        
+                        const options = shuffle([targetWord, ...distractors]);
+
+                        questions.push({
+                            id: qId++,
+                            type: 'cloze',
+                            text: `${msg.speaker} 曾說：「${maskedContent}」？`,
+                            options: options,
+                            answer: targetWord
+                        });
+                    });
+                });
+
+                // --- 3. 統計題 (Stats) ---
+                // 3.1 貼圖統計
+                const stickerCounts = { Stella: 0, 凱晨: 0 };
+                this.messages.forEach(m => { if (m.isSticker) stickerCounts[m.speaker]++; });
+                if (stickerCounts.Stella !== stickerCounts.凱晨) {
+                     questions.push({
+                        id: qId++,
+                        type: 'stat',
+                        text: '對話中，誰傳送「貼圖」的次數明顯比較多？',
+                        options: ['Stella', '凱晨', '一樣多', '都不傳貼圖'],
+                        answer: stickerCounts.Stella > stickerCounts.凱晨 ? 'Stella' : '凱晨'
+                    });
+                }
+
+                // 3.2 晚睡統計 (00:00 - 04:00)
+                const nightCounts = { Stella: 0, 凱晨: 0 };
+                this.messages.forEach(m => {
+                    const hour = parseInt(m.time.split(':')[0]);
+                    if (hour >= 0 && hour < 4) nightCounts[m.speaker]++;
+                });
+                if (Math.abs(nightCounts.Stella - nightCounts.凱晨) > 2) {
+                    questions.push({
+                        id: qId++,
+                        type: 'stat',
+                        text: '誰比較常在半夜 (00:00-04:00) 還在傳訊息？',
+                        options: ['Stella', '凱晨', '頻率差不多', '都早睡早起'],
+                        answer: nightCounts.Stella > nightCounts.凱晨 ? 'Stella' : '凱晨'
+                    });
+                }
+
+                // 3.3 字數統計 (誰話比較多)
+                const totalLength = { Stella: 0, 凱晨: 0 };
+                this.messages.forEach(m => { totalLength[m.speaker] += m.length; });
+                if (Math.abs(totalLength.Stella - totalLength.凱晨) > 500) {
+                     questions.push({
+                        id: qId++,
+                        type: 'stat',
+                        text: '整體來看，誰打的字數總和比較多？',
+                        options: ['Stella', '凱晨', '差不多', '無法計算'],
+                        answer: totalLength.Stella > totalLength.凱晨 ? 'Stella' : '凱晨'
+                    });
+                }
+
+                // --- 4. 時間點題 (First Message) ---
+                // 找出每一天第一則訊息是誰傳的
+                const days = {};
+                this.messages.forEach(m => {
+                    if (m.date && !days[m.date]) {
+                        days[m.date] = m.speaker;
+                    }
+                });
+                Object.keys(days).slice(0, 10).forEach(date => {
+                    questions.push({
+                        id: qId++,
+                        type: 'time',
+                        text: `在 ${date} 這一天，是誰傳了第一則訊息？`,
+                        options: ['Stella', '凱晨', '同時', '系統'],
+                        answer: days[date]
+                    });
+                });
+
+                return shuffle(questions);
+            }
+        }
+
+        // --------------------------------------------------
+        // UI Components
+        // --------------------------------------------------
+        
+        function App() {
+            const [view, setView] = useState('loading'); // loading, menu, quiz, result, error
+            const [errorMessage, setErrorMessage] = useState('');
+            const [questions, setQuestions] = useState([]);
+            
+            const [currentUser, setCurrentUser] = useState(''); // 'Stella' or '凱晨'
+            const [currentQuizSet, setCurrentQuizSet] = useState([]);
+            const [currentQIndex, setCurrentQIndex] = useState(0);
+            const [answers, setAnswers] = useState({});
+            const [score, setScore] = useState(0);
+
+            // 讀取歷史紀錄 (防重複)
+            const [history, setHistory] = useState(() => {
+                const saved = localStorage.getItem('quiz_history_gh');
+                return saved ? JSON.parse(saved) : { Stella: [], 凱晨: [] };
+            });
+
+            useEffect(() => {
+                localStorage.setItem('quiz_history_gh', JSON.stringify(history));
+            }, [history]);
+
+            // --- 自動讀取 line-chat.txt ---
+            useEffect(() => {
+                const initData = async () => {
+                    try {
+                        console.log("正在讀取 line-chat.txt...");
+                        const response = await fetch('./line-chat.txt');
+                        
+                        if (!response.ok) {
+                            throw new Error(`無法讀取 line-chat.txt (Status: ${response.status})。請確認檔案是否存在於根目錄。`);
+                        }
+                        
+                        const text = await response.text();
+                        console.log("讀取成功，檔案大小:", text.length);
+
+                        const parser = new ChatParser();
+                        const parsedMsgs = parser.parse(text);
+                        console.log("解析完成，訊息數:", parsedMsgs.length);
+
+                        if (parsedMsgs.length < 5) {
+                            throw new Error("解析出的訊息過少。請確認 line-chat.txt 格式是否為「時間 <TAB> 姓名 <TAB> 訊息」，且包含 Stella 或 凱晨。");
+                        }
+
+                        // 生成題庫
+                        const genQuestions = parser.generateQuestions(150);
+                        console.log("題庫生成:", genQuestions.length);
+                        setQuestions(genQuestions);
+                        
+                        // 稍微延遲讓 loading 動畫跑一下，體驗較佳
+                        setTimeout(() => setView('menu'), 800);
+
+                    } catch (err) {
+                        console.error(err);
+                        setErrorMessage(err.message);
+                        setView('error');
+                    }
+                };
+
+                initData();
+            }, []);
+
+            // --- 開始測驗邏輯 ---
+            const startQuiz = (user) => {
+                setCurrentUser(user);
+                const userHistory = history[user] || [];
+                
+                // 優先使用未做過的題目
+                let available = questions.filter(q => !userHistory.includes(q.id));
+                
+                // 若題目不足 20 題，重置歷史
+                if (available.length < 20) {
+                    setHistory(prev => ({ ...prev, [user]: [] }));
+                    available = [...questions];
+                    // alert("題庫已輪過一輪，將重置題目紀錄！");
+                }
+
+                const quizSet = available.sort(() => Math.random() - 0.5).slice(0, 20);
+                setCurrentQuizSet(quizSet);
+                setCurrentQIndex(0);
+                setAnswers({});
+                setView('quiz');
             };
 
-            // 渲染：歡迎頁面
-            if (gameStage === 'welcome') {
-                return (
-                    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#F5F5F3] to-[#E8E6E1]">
-                        <div className="glass-card w-full max-w-md p-8 rounded-3xl shadow-xl text-center slide-up">
-                            <div className="flex justify-center mb-6">
-                                <div className="bg-morandi-secondary/20 p-4 rounded-full">
-                                    <HeartIcon />
-                                </div>
-                            </div>
-                            <h1 className="text-3xl font-serif font-bold text-morandi-text mb-2">默契大考驗</h1>
-                            <p className="text-morandi-primary mb-8 text-sm tracking-widest">RELATIONSHIP QUIZ</p>
-                            
-                            <div className="space-y-4 mb-8 text-left">
-                                <div>
-                                    <label className="text-xs text-morandi-light font-bold uppercase tracking-wider ml-1">Player 1</label>
-                                    <input 
-                                        type="text" 
-                                        value={p1Name} 
-                                        onChange={(e) => setP1Name(e.target.value)}
-                                        className="w-full mt-1 p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-morandi-primary text-morandi-text"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-morandi-light font-bold uppercase tracking-wider ml-1">Player 2</label>
-                                    <input 
-                                        type="text" 
-                                        value={p2Name} 
-                                        onChange={(e) => setP2Name(e.target.value)}
-                                        className="w-full mt-1 p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-morandi-primary text-morandi-text"
-                                    />
-                                </div>
-                            </div>
+            // --- 回答邏輯 ---
+            const handleAnswer = (option) => {
+                const q = currentQuizSet[currentQIndex];
+                setAnswers(prev => ({ ...prev, [q.id]: option }));
 
-                            <button 
-                                onClick={initGame}
-                                className="w-full py-4 bg-morandi-primary text-white rounded-xl font-bold shadow-lg hover:bg-[#6A7B7B] transition-all transform hover:-translate-y-1 mb-4"
-                            >
-                                開始測驗
-                            </button>
-                            
-                            <p className="text-xs text-morandi-light mt-4">
-                                根據上傳的對話紀錄自動生成<br/>
-                                包含生活趣事、習慣用語與共同回憶
-                            </p>
-                        </div>
+                setTimeout(() => {
+                    if (currentQIndex < 19) {
+                        setCurrentQIndex(prev => prev + 1);
+                    } else {
+                        finishQuiz();
+                    }
+                }, 300);
+            };
+
+            // --- 結算邏輯 ---
+            const finishQuiz = () => {
+                let correctCount = 0;
+                const newHistoryIds = [];
+                currentQuizSet.forEach(q => {
+                    if (answers[q.id] === q.answer) correctCount++;
+                    newHistoryIds.push(q.id);
+                });
+
+                setScore(Math.round((correctCount / 20) * 100));
+                
+                setHistory(prev => ({
+                    ...prev,
+                    [currentUser]: [...(prev[currentUser] || []), ...newHistoryIds]
+                }));
+                
+                setView('result');
+            };
+
+            // ------------------
+            // Views
+            // ------------------
+
+            // 1. Loading
+            if (view === 'loading') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center bg-morandi-bg">
+                        <div className="w-10 h-10 border-4 border-morandi-main border-t-transparent rounded-full spin mb-4"></div>
+                        <p className="text-morandi-main font-bold tracking-widest animate-pulse">READING CHAT LOG...</p>
                     </div>
                 );
             }
 
-            // 渲染：中場休息（換人）
-            if (gameStage === 'intermission') {
+            // 2. Error
+            if (view === 'error') {
                 return (
-                    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-morandi-primary/10">
-                        <div className="glass-card w-full max-w-md p-10 rounded-3xl shadow-xl text-center slide-up">
-                            <h2 className="text-2xl font-bold text-morandi-text mb-4">{p1Name} 作答完成！</h2>
-                            <p className="text-morandi-text/80 mb-8 leading-relaxed">
-                                請將手機/電腦交給 <span className="font-bold text-morandi-primary">{p2Name}</span><br/>
-                                接下來換他接受挑戰。
+                    <div className="min-h-screen flex flex-col items-center justify-center bg-morandi-bg p-8 text-center">
+                        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md">
+                            <h2 className="text-xl font-bold text-morandi-error mb-4">讀取失敗</h2>
+                            <p className="text-morandi-text mb-6 text-sm leading-relaxed">{errorMessage}</p>
+                            <p className="text-xs text-gray-400">
+                                請確認 <code>index.html</code> 與 <code>line-chat.txt</code> 位於同一目錄。
                             </p>
-                            <div className="w-20 h-20 bg-white rounded-full mx-auto mb-8 flex items-center justify-center shadow-inner">
-                                <span className="text-3xl">🤫</span>
-                            </div>
-                            <button 
-                                onClick={() => setGameStage('p2_turn')}
-                                className="w-full py-4 bg-morandi-secondary text-white rounded-xl font-bold shadow-lg hover:opacity-90 transition-all"
-                            >
-                                我是 {p2Name}，開始作答
+                            <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-morandi-main text-white rounded-lg">
+                                重試
                             </button>
                         </div>
                     </div>
                 );
             }
 
-            // 渲染：計算中
-            if (gameStage === 'calculating') {
+            // 3. Menu
+            if (view === 'menu') {
                 return (
-                    <div className="min-h-screen flex flex-col items-center justify-center p-6">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-morandi-primary mx-auto mb-4"></div>
-                            <p className="text-morandi-text font-serif text-xl">正在分析兩人默契...</p>
-                        </div>
-                    </div>
-                );
-            }
+                    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-morandi-bg relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-64 h-64 bg-morandi-main opacity-10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+                        
+                        <div className="glass-card w-full max-w-md p-8 rounded-3xl z-10 slide-up text-center">
+                            <h1 className="text-3xl font-serif font-bold text-morandi-text mb-2 tracking-wide">默契大考驗</h1>
+                            <p className="text-morandi-main text-xs uppercase tracking-[0.2em] mb-8">Compatibility Quiz</p>
+                            
+                            <p className="text-sm text-morandi-text mb-6">已成功讀取對話紀錄<br/>並生成 <span className="font-bold text-morandi-main">{questions.length}</span> 道專屬題目</p>
 
-            // 渲染：結果頁
-            if (gameStage === 'result') {
-                const { score, details } = calculateResult();
-                return (
-                    <div className="min-h-screen p-4 md:p-8 bg-[#F5F5F3]">
-                        <div className="max-w-2xl mx-auto space-y-6">
-                            {/* 總分卡片 */}
-                            <div className="glass-card p-8 rounded-3xl shadow-lg text-center slide-up relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-morandi-primary to-morandi-secondary"></div>
-                                <h2 className="text-morandi-light text-sm tracking-widest uppercase mb-2">Matching Score</h2>
-                                <div className="text-7xl font-serif font-bold text-morandi-text mb-2">{score}%</div>
-                                <p className="text-morandi-primary font-medium">
-                                    {score === 100 ? "靈魂伴侶！皮卡丘都驚呆了！" : 
-                                     score >= 80 ? "超級有默契！根本是老夫老妻" :
-                                     score >= 60 ? "還不錯喔，但有些回憶需要複習" :
-                                     "看來需要多去吃幾次春米培養感情了 XD"}
-                                </p>
-                            </div>
-
-                            {/* 詳細比對 */}
                             <div className="space-y-4">
-                                <h3 className="text-morandi-text font-bold ml-2">答題詳情</h3>
-                                {details.map((item, idx) => (
-                                    <div key={idx} className={`bg-white p-5 rounded-2xl shadow-sm border-l-4 ${item.isMatch ? 'border-morandi-primary' : 'border-morandi-secondary'} slide-up`} style={{animationDelay: `${idx * 100}ms`}}>
-                                        <p className="font-medium text-morandi-text mb-3 text-lg">{item.question}</p>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
-                                            <div className="bg-gray-50 p-3 rounded-lg">
-                                                <span className="block text-xs text-gray-400 mb-1">{p1Name}</span>
-                                                <span className={`${item.ans1 === item.correct ? 'text-morandi-primary font-bold' : 'text-gray-600'}`}>{item.ans1}</span>
-                                            </div>
-                                            <div className="bg-gray-50 p-3 rounded-lg">
-                                                <span className="block text-xs text-gray-400 mb-1">{p2Name}</span>
-                                                <span className={`${item.ans2 === item.correct ? 'text-morandi-primary font-bold' : 'text-gray-600'}`}>{item.ans2}</span>
-                                            </div>
-                                        </div>
-                                        {!item.isMatch && (
-                                            <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-morandi-secondary">
-                                                💡 答案不一致！正確答案是：{item.correct}
-                                            </div>
-                                        )}
+                                <button 
+                                    onClick={() => startQuiz('Stella')}
+                                    className="w-full py-5 rounded-xl bg-white border border-morandi-accent text-morandi-text hover:bg-morandi-main hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch"
+                                >
+                                    <span className="text-2xl">👩🏻</span>
+                                    <div className="text-left">
+                                        <span className="block font-bold text-lg">我是 Stella</span>
+                                        <span className="text-xs opacity-70">開始測驗</span>
                                     </div>
-                                ))}
+                                </button>
+                                <button 
+                                    onClick={() => startQuiz('凱晨')}
+                                    className="w-full py-5 rounded-xl bg-white border border-morandi-main text-morandi-text hover:bg-morandi-dark hover:text-white transition-all shadow-sm flex items-center justify-center space-x-3 btn-touch"
+                                >
+                                    <span className="text-2xl">👦🏻</span>
+                                    <div className="text-left">
+                                        <span className="block font-bold text-lg">我是 凱晨</span>
+                                        <span className="text-xs opacity-70">開始測驗</span>
+                                    </div>
+                                </button>
                             </div>
-
-                            <button 
-                                onClick={() => setGameStage('welcome')}
-                                className="w-full py-4 bg-white border border-morandi-primary text-morandi-primary rounded-xl font-bold hover:bg-morandi-primary hover:text-white transition-colors"
-                            >
-                                再玩一次
-                            </button>
                         </div>
                     </div>
                 );
             }
 
-            // 渲染：答題中 (通用介面)
-            const currentQ = questions[currentQIndex];
-            const currentPlayerName = gameStage === 'p1_turn' ? p1Name : p2Name;
-            const progress = ((currentQIndex + 1) / questions.length) * 100;
+            // 4. Quiz
+            if (view === 'quiz') {
+                const q = currentQuizSet[currentQIndex];
+                const progress = ((currentQIndex + 1) / 20) * 100;
 
-            return (
-                <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto relative">
-                    {/* 進度條 */}
-                    <div className="w-full bg-gray-200 h-1.5 rounded-full mb-8 fixed top-0 left-0 z-50">
-                        <div className="bg-morandi-primary h-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col justify-center slide-up">
-                        <div className="mb-8">
-                            <span className="inline-block px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-morandi-primary mb-4 shadow-sm">
-                                Question {currentQIndex + 1} / {questions.length}
-                            </span>
-                            <span className="block text-xs text-gray-400 mb-2">正在作答: {currentPlayerName}</span>
-                            <h2 className="text-2xl font-bold text-morandi-text leading-relaxed">
-                                {currentQ.question}
-                            </h2>
+                return (
+                    <div className="min-h-screen flex flex-col bg-morandi-bg">
+                        <div className="h-1.5 w-full bg-gray-200 fixed top-0 z-50">
+                            <div className="h-full bg-morandi-main transition-all duration-300" style={{width: `${progress}%`}}></div>
                         </div>
 
-                        <div className="space-y-3">
-                            {currentQ.options.map((opt, idx) => {
-                                // 判斷是否被選中
-                                const currentAnswers = gameStage === 'p1_turn' ? p1Answers : p2Answers;
-                                const isSelected = currentAnswers[currentQ.id] === opt;
+                        <div className="flex-1 flex flex-col max-w-md mx-auto w-full p-6 pt-12">
+                            <div className="flex justify-between items-center mb-6">
+                                <span className="text-morandi-main font-bold text-lg font-serif">Q{currentQIndex + 1}</span>
+                                <span className="px-3 py-1 bg-white rounded-full text-xs text-morandi-sub shadow-sm">
+                                    {currentUser} 的挑戰
+                                </span>
+                            </div>
+
+                            <div className="bg-white rounded-3xl p-8 shadow-sm mb-6 min-h-[180px] flex items-center justify-center border border-gray-100 slide-up">
+                                <h2 className="text-xl font-bold text-morandi-text text-center leading-relaxed">
+                                    {q.text}
+                                </h2>
+                            </div>
+
+                            <div className="space-y-3">
+                                {q.options.map((opt, idx) => {
+                                    const isSelected = answers[q.id] === opt;
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleAnswer(opt)}
+                                            className={`w-full p-4 rounded-xl text-left transition-all duration-200 border btn-touch
+                                                ${isSelected 
+                                                    ? 'bg-morandi-main text-white border-morandi-main shadow-md' 
+                                                    : 'bg-white text-morandi-text border-transparent shadow-sm hover:border-morandi-accent'
+                                                }
+                                            `}
+                                        >
+                                            <span className="font-medium text-base">{opt}</span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 5. Result
+            if (view === 'result') {
+                return (
+                    <div className="min-h-screen bg-morandi-bg p-6 flex flex-col items-center justify-center">
+                        <div className="w-full max-w-md slide-up">
+                            <div className="bg-white rounded-3xl p-8 shadow-xl text-center mb-6 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-morandi-main to-morandi-accent"></div>
                                 
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleAnswer(opt)}
-                                        className={`w-full p-5 text-left rounded-2xl transition-all duration-200 border 
-                                            ${isSelected 
-                                                ? 'bg-morandi-primary text-white border-morandi-primary shadow-lg scale-[1.02]' 
-                                                : 'bg-white text-morandi-text border-gray-100 hover:border-morandi-primary/50 shadow-sm hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <span className="text-base font-medium">{opt}</span>
-                                    </button>
-                                );
-                            })}
+                                <h2 className="text-morandi-sub text-xs uppercase tracking-widest mb-4">Final Score</h2>
+                                <div className="text-7xl font-serif font-bold text-morandi-text mb-4">
+                                    {score}
+                                </div>
+                                <p className="text-morandi-dark font-medium px-4 mb-6">
+                                    {score === 100 ? "太神了！你們是不是偷看答案？" :
+                                     score >= 80 ? "超級有默契！根本是靈魂伴侶" :
+                                     score >= 60 ? "還不錯喔，但有些細節需要複習" :
+                                     "這...建議多看幾次對話紀錄 XD"}
+                                </p>
+
+                                <div className="text-left bg-gray-50 rounded-xl p-4 max-h-60 overflow-y-auto mb-6 text-sm">
+                                    <h3 className="font-bold text-morandi-text mb-2 sticky top-0 bg-gray-50">答錯題目檢討：</h3>
+                                    {currentQuizSet.map((q, idx) => {
+                                        const myAns = answers[q.id];
+                                        if (myAns === q.answer) return null;
+                                        return (
+                                            <div key={q.id} className="mb-3 border-b border-gray-200 pb-2 last:border-0">
+                                                <p className="text-gray-800 mb-1">{idx+1}. {q.text}</p>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-morandi-error">你: {myAns}</span>
+                                                    <span className="text-morandi-main font-bold">正解: {q.answer}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {score === 100 && <p className="text-center text-gray-400">沒有答錯的題目，完美！</p>}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => startQuiz(currentUser)}
+                                    className="flex-1 py-4 bg-morandi-main text-white rounded-xl font-bold shadow-lg btn-touch"
+                                >
+                                    再玩一次
+                                </button>
+                                <button 
+                                    onClick={() => setView('menu')}
+                                    className="flex-1 py-4 bg-white text-morandi-text border border-gray-200 rounded-xl font-bold shadow-sm btn-touch"
+                                >
+                                    換人挑戰
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            );
+                );
+            }
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
